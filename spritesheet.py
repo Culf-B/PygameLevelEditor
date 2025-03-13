@@ -1,7 +1,7 @@
 import pygame
 pygame.init()
 
-import catcher
+import tools.catcher as catcher
 
 class Spritesheet:
     '''A class to handle loading images from a spritesheet'''
