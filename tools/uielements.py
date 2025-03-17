@@ -36,14 +36,13 @@ def remove_elements(*args):
                     break
 
 class Group:
-    def __init__(self, eventOffset = [0, 0]):
+    def __init__(self):
         self.elements = []
-        self.eventOffset = eventOffset
         groups.append(self)
 
-    def update(self):
+    def update(self, events):
         for element in self.elements:
-            element.update(self.eventOffset)
+            element.update(events)
 
     def add_elements(self, *args):
         for element in args:
@@ -77,9 +76,9 @@ class Element:
         self.activated = False
         self.groups = []
 
-    def update(self, offsetEventPos = [0, 0]):
+    def update(self, events):
         if self.activated:
-            self.eventupdate(offsetEventPos)
+            self.eventupdate(events)
             self.draw()
 
     def eventupdate(self, *args):
@@ -309,3 +308,109 @@ class RenderWindow(Element):
             listener()
 
         self.screen.blit(self.surface, self.rect.topleft)
+
+class ObjectScrollBox(Element):
+    def __init__(self, screen, rect, objectSize, colorscheme, objects = [], bordersize = 2, activated = True):
+        super().__init__()
+
+        self.screen = screen
+        self.rect = rect
+        self.objectSize = objectSize
+        self.surface = pygame.surface.Surface([self.rect.w, self.rect.h])
+
+        self.colorscheme = colorscheme
+        self.bordersize = bordersize
+        
+        self.activated = activated
+
+        self.objects = objects
+        for obj in self.objects:
+            obj.setup(self.objectSize, self.surface)
+
+        self.hover = False
+        self.scroll = False
+        self.contentposition = 0
+        self.scrollspeed = 5
+        self.maxScroll = 0
+        self.objectsPrLine = 0
+
+    def eventupdate(self, events):
+        self.tempMpos = pygame.mouse.get_pos()
+        self.scroll = False
+        if self.rect.collidepoint(self.tempMpos):
+            self.hover = True
+
+            for event in events:
+                if event.type == pygame.MOUSEWHEEL: # idk this no work this mentions sdl 2: https://pyga.me/docs/ref/event.html
+                    self.scroll = True
+                    self.contentposition += event.y * self.scrollspeed
+
+                    if self.contentposition < 0:
+                        self.contentposition = 0
+                    elif self.contentposition > self.maxScroll:
+                        self.contentposition = self.maxScroll
+                
+                elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+                    for obj in self.objects:
+                        obj.mouseevent([event.pos[0] - self.rect.x, event.pos[1] - self.rect.y])
+        else:
+            self.hover = False
+
+    def updateContentDimensions(self):
+        self.objectsPrLine = (self.rect.w - self.bordersize * 2) // self.objectSize[0]
+        self.maxScroll = (len(self.objects) // self.objectsPrLine) * self.objectSize[1]
+
+    def draw(self):
+        self.updateContentDimensions()
+
+        # Background
+        self.surface.fill(self.colorscheme[2])
+
+        # Border
+        pygame.draw.rect(self.surface, self.colorscheme[1], pygame.Rect(0, 0, self.surface.get_width(), self.surface.get_height()), self.bordersize)
+
+        # Content
+        self.contentStartX = (self.rect.w - self.objectsPrLine * self.objectSize[1]) / 2
+
+        for i in range(len(self.objects)):
+            self.objects[i].draw([(i % self.objectsPrLine) * self.objectSize[0], (i // self.objectsPrLine) * self.objectSize[1]])
+
+        # Export to parent
+        self.screen.blit(self.surface, [self.rect.x, self.rect.y])
+
+    def addObjects(self, *args):
+        for obj in args:
+            self.objects.append(obj)
+            obj.setup(self.objectSize, self.surface)
+
+class ScrollCompatibleObject:
+    def __init__(self):
+        self.setupDone = False
+        self.latestPos = [0, 0]
+        self.size = [0, 0]
+        self.exportSurface = None
+
+    def setup(self, objectSize, parentSurface):
+        self.size = objectSize
+        self.exportSurface = pygame.surface.Surface(self.size)
+        self.parentSurface = parentSurface
+        self.setupDone = True
+
+    def mouseevent(self, pos):
+        if self.setupDone:
+            if pygame.rect.Rect(self.latestPos, self.size).collidepoint(pos):
+                self.clickevent()
+
+    def clickevent(self):
+        print("Mouseclick!")
+
+    def draw(self, pos):
+        self.latestPos = pos
+
+        if self.setupDone:
+            self.updateGraphics()
+
+            self.parentSurface.blit(self.exportSurface, pos)
+
+    def updateGraphics(self):
+        self.exportSurface.fill([255, 255, 255])

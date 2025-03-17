@@ -18,7 +18,7 @@ class Gui:
         self.wBottomCoeffs = [1, 0.3]
 
         # --- Render window ---
-        self.gMainRender = Group(eventOffset = [0, 0])
+        self.gMainRender = Group()
 
         # Render window element setup
         self.gMainRender.add_elements(
@@ -38,15 +38,34 @@ class Gui:
         self.gBottomTools = Group() # Overview and selection of tools such as delete, place and brushes
         self.gBottomTiles = Group() # Overview and selection of tiles
 
+        self.gBottomTiles.add_elements(
+            ObjectScrollBox(
+                self.renderSurface,
+                pygame.Rect(0, self.renderRes[1] * self.wMainCoeffs[1], self.renderRes[0] * self.wBottomCoeffs[0], self.renderRes[1] * self.wBottomCoeffs[1]),
+                [50, 50],
+                [
+                    [0, 0, 0],
+                    [50, 50, 100],
+                    [100, 100, 100]
+                ],
+                objects = [ScrollCompatibleObject()]
+            )
+        )
+
         # --- Activate default groups ---
         self.gMainRender.activate_all()
+        self.gBottomTiles.activate_all()
 
-    def draw(self):
+        # --- Deactivate non-default groups ---
+        self.gRightImporter.deactivate_all()
+        self.gBottomTools.deactivate_all()
+
+    def draw(self, events):
         self.renderSurface.fill([255, 255, 255])
 
         # Update all grouped elements
         for group in groups:
-            group.update()
+            group.update(events)
 
         self.parentSurface.blit(self.renderSurface, [0, 0])
 
@@ -62,13 +81,14 @@ def _guiTest():
     gui = Gui(screen)
 
     while run:
-        for event in pygame.event.get():
+        events = pygame.event.get()
+        for event in events:
             if event.type == pygame.QUIT:
                 run = False
 
         screen.fill([255, 255, 255])
 
-        gui.draw()
+        gui.draw(events)
 
         clock.tick(60)
         pygame.display.update()
