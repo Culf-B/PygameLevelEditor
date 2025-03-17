@@ -330,7 +330,7 @@ class ObjectScrollBox(Element):
         self.hover = False
         self.scroll = False
         self.contentposition = 0
-        self.scrollspeed = 5
+        self.scrollspeed = 15
         self.maxScroll = 0
         self.objectsPrLine = 0
 
@@ -341,9 +341,9 @@ class ObjectScrollBox(Element):
             self.hover = True
 
             for event in events:
-                if event.type == pygame.MOUSEWHEEL: # idk this no work this mentions sdl 2: https://pyga.me/docs/ref/event.html
+                if event.type == pygame.MOUSEWHEEL:
                     self.scroll = True
-                    self.contentposition += event.y * self.scrollspeed
+                    self.contentposition -= event.y * self.scrollspeed
 
                     if self.contentposition < 0:
                         self.contentposition = 0
@@ -366,14 +366,15 @@ class ObjectScrollBox(Element):
         # Background
         self.surface.fill(self.colorscheme[2])
 
-        # Border
-        pygame.draw.rect(self.surface, self.colorscheme[1], pygame.Rect(0, 0, self.surface.get_width(), self.surface.get_height()), self.bordersize)
-
         # Content
         self.contentStartX = (self.rect.w - self.objectsPrLine * self.objectSize[1]) / 2
+        self.contentStartY = self.bordersize
 
         for i in range(len(self.objects)):
-            self.objects[i].draw([(i % self.objectsPrLine) * self.objectSize[0], (i // self.objectsPrLine) * self.objectSize[1]])
+            self.objects[i].draw([self.contentStartX + (i % self.objectsPrLine) * self.objectSize[0], self.contentStartY + (i // self.objectsPrLine) * self.objectSize[1] - self.contentposition])
+
+        # Border
+        pygame.draw.rect(self.surface, self.colorscheme[1], pygame.Rect(0, 0, self.surface.get_width(), self.surface.get_height()), self.bordersize)
 
         # Export to parent
         self.screen.blit(self.surface, [self.rect.x, self.rect.y])
@@ -402,7 +403,7 @@ class ScrollCompatibleObject:
                 self.clickevent()
 
     def clickevent(self):
-        print("Mouseclick!")
+        pass
 
     def draw(self, pos):
         self.latestPos = pos
@@ -414,3 +415,4 @@ class ScrollCompatibleObject:
 
     def updateGraphics(self):
         self.exportSurface.fill([255, 255, 255])
+        pygame.draw.rect(self.exportSurface, [0, 0, 0], pygame.Rect(0, 0, self.size[0], self.size[1]), 5)

@@ -41,14 +41,14 @@ class Gui:
         self.gBottomTiles.add_elements(
             ObjectScrollBox(
                 self.renderSurface,
-                pygame.Rect(0, self.renderRes[1] * self.wMainCoeffs[1], self.renderRes[0] * self.wBottomCoeffs[0], self.renderRes[1] * self.wBottomCoeffs[1]),
+                pygame.Rect(0, self.renderRes[1] * self.wMainCoeffs[1] + self.renderRes[1] * (self.wBottomCoeffs[1] * 0.2), self.renderRes[0] * self.wBottomCoeffs[0], self.renderRes[1] * (self.wBottomCoeffs[1] * 0.8)),
                 [50, 50],
                 [
                     [0, 0, 0],
                     [50, 50, 100],
                     [100, 100, 100]
                 ],
-                objects = [ScrollCompatibleObject()]
+                objects = [ScrollCompatibleObject() for _ in range(100)]
             )
         )
 
@@ -68,9 +68,6 @@ class Gui:
             group.update(events)
 
         self.parentSurface.blit(self.renderSurface, [0, 0])
-
-
-
 
 def _guiTest():
     screen = pygame.display.set_mode([1600, 900])
