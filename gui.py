@@ -17,31 +17,75 @@ class Gui:
         self.wRightCoeffs = [0.3, 0.7]
         self.wBottomCoeffs = [1, 0.3]
 
-        # --- Render window ---
-        self.gMainRender = Group()
+        # --- Window Rects ---
+        self.rMain = pygame.Rect(0, 0, self.renderRes[0] * self.wMainCoeffs[0], self.renderRes[1] * self.wMainCoeffs[1])
+        self.rRight = pygame.Rect(self.renderRes[0] * (1 - self.wRightCoeffs[0]), 0, self.renderRes[0] * self.wRightCoeffs[0], self.renderRes[1] * self.wRightCoeffs[1])
+        self.rBottom = pygame.Rect(0, self.renderRes[1] * (1 - self.wBottomCoeffs[1]), self.renderRes[0] * self.wBottomCoeffs[0], self.renderRes[1] * self.wBottomCoeffs[1])
 
-        # Render window element setup
-        self.gMainRender.add_elements(
-            RenderWindow(
-                self.renderSurface,
-                pygame.Rect(0, 0, self.renderRes[0] * self.wMainCoeffs[0], self.renderRes[1] * self.wMainCoeffs[1])
-            )
+        # --- Render window ---
+        self.wMainRender = Window(
+            self.renderSurface,
+            self.rMain,
+            [
+                [0, 0, 0],
+                [0, 0, 0],
+                [100, 100, 100]
+            ],
+            2
         )
 
+        # Render window element setup
+
         # --- Right sidebar ---
-        # Different groups for different sidebar options
-        self.gRightImporter = Group() # UI for importing new tiles
-        self.gRightOptions = Group() # UI for configuring selected tile
+        # Different sidebar windows
+        self.wRightImporter = Window(
+            self.renderSurface,
+            self.rRight,
+            [
+                [0, 0, 0],
+                [0, 0, 0],
+                [255, 255, 255]
+            ],
+            1
+        ) # UI for importing new tiles
+        self.wRightOptions = Window(
+            self.renderSurface,
+            self.rRight,
+            [
+                [0, 0, 0],
+                [0, 0, 0],
+                [255, 255, 255]
+            ],
+            1
+        ) # UI for configuring selected tile
 
         # --- Bottombar ---
         # Different groups for different bottombar options
-        self.gBottomTools = Group() # Overview and selection of tools such as delete, place and brushes
-        self.gBottomTiles = Group() # Overview and selection of tiles
+        self.wBottomTools = Window(
+            self.renderSurface,
+            self.rBottom,
+            [
+                [0, 0, 0],
+                [0, 0, 0],
+                [255, 255, 255]
+            ],
+            1
+        ) # Overview and selection of tools such as delete, place and brushes
+        self.wBottomTiles = Window(
+            self.renderSurface,
+            self.rBottom,
+            [
+                [0, 0, 0],
+                [0, 0, 0],
+                [255, 255, 255]
+            ],
+            1
+        ) # Overview and selection of tiles
 
-        self.gBottomTiles.add_elements(
+        self.wBottomTiles.add_elements(
             ObjectScrollBox(
-                self.renderSurface,
-                pygame.Rect(0, self.renderRes[1] * self.wMainCoeffs[1] + self.renderRes[1] * (self.wBottomCoeffs[1] * 0.2), self.renderRes[0] * self.wBottomCoeffs[0], self.renderRes[1] * (self.wBottomCoeffs[1] * 0.8)),
+                self.wBottomTiles.getSurface(),
+                pygame.Rect(0, 0, self.wBottomTiles.getWidth(), self.wBottomTiles.getHeight()),
                 [50, 50],
                 [
                     [0, 0, 0],
@@ -53,12 +97,12 @@ class Gui:
         )
 
         # --- Activate default groups ---
-        self.gMainRender.activate_all()
-        self.gBottomTiles.activate_all()
+        self.wMainRender.activate_all()
+        self.wBottomTiles.activate_all()
 
         # --- Deactivate non-default groups ---
-        self.gRightImporter.deactivate_all()
-        self.gBottomTools.deactivate_all()
+        self.wRightImporter.deactivate_all()
+        self.wBottomTools.deactivate_all()
 
     def draw(self, events):
         self.renderSurface.fill([255, 255, 255])

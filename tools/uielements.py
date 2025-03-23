@@ -70,15 +70,56 @@ class Group:
         for element in self.elements:
             element.activated = False
 
+class Window(Group):
+    def __init__(self, screen, rect, colorscheme, borderwidth = None):
+        super().__init__()
+
+        self.screen = screen
+        self.borderWidth = borderwidth
+        self.colorscheme = colorscheme
+        self.rect = rect
+        self.surface = pygame.surface.Surface([rect.w, rect.h])
+
+    def getWidth(self):
+        return self.rect.w
+    
+    def getHeight(self):
+        return self.rect.h
+
+    def getSurface(self):
+        return self.surface
+    
+    def update(self, events):
+        self.clearSurface()
+
+        for element in self.elements:
+            element.update(events, self.rect.topleft)
+
+        self.drawBorder()
+        self.drawOnScreen()
+    
+    def clearSurface(self):
+        self.surface.fill(self.colorscheme[2])
+
+    def drawBorder(self):
+        if self.borderWidth != None:
+            pygame.draw.rect(self.surface, self.colorscheme[1], pygame.Rect(0, 0, self.rect.w, self.rect.h), self.borderWidth)
+        
+    def drawOnScreen(self):
+        self.screen.blit(self.surface, [self.rect.x, self.rect.y])
+
 class Element:
     def __init__(self):
         all_elements.append(self)
         self.activated = False
         self.groups = []
 
-    def update(self, events):
+    def update(self, events, positionoffset = None):
         if self.activated:
-            self.eventupdate(events)
+            if positionoffset != None:
+                self.eventupdate(events, positionoffset)
+            else:
+                self.eventupdate(events)
             self.draw()
 
     def eventupdate(self, *args):
@@ -334,10 +375,11 @@ class ObjectScrollBox(Element):
         self.maxScroll = 0
         self.objectsPrLine = 0
 
-    def eventupdate(self, events):
+    def eventupdate(self, events, positionoffset = [0, 0]):
         self.tempMpos = pygame.mouse.get_pos()
         self.scroll = False
-        if self.rect.collidepoint(self.tempMpos):
+        self.collisionrect = pygame.Rect(self.rect.x + positionoffset[0], self.rect.y + positionoffset[1], self.rect.w, self.rect.h)
+        if self.collisionrect.collidepoint(self.tempMpos):
             self.hover = True
 
             for event in events:
@@ -352,7 +394,7 @@ class ObjectScrollBox(Element):
                 
                 elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
                     for obj in self.objects:
-                        obj.mouseevent([event.pos[0] - self.rect.x, event.pos[1] - self.rect.y])
+                        obj.mouseevent([event.pos[0] - self.collisionrect.x, event.pos[1] - self.collisionrect.y])
         else:
             self.hover = False
 
