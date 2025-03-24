@@ -17,6 +17,8 @@ class Gui:
         self.wRightCoeffs = [0.3, 0.7]
         self.wBottomCoeffs = [1, 0.3]
 
+        self.scalingRatio = 1
+
         # --- Window Rects ---
         self.rMain = pygame.Rect(0, 0, self.renderRes[0] * self.wMainCoeffs[0], self.renderRes[1] * self.wMainCoeffs[1])
         self.rRight = pygame.Rect(self.renderRes[0] * (1 - self.wRightCoeffs[0]), 0, self.renderRes[0] * self.wRightCoeffs[0], self.renderRes[1] * self.wRightCoeffs[1])
@@ -108,13 +110,25 @@ class Gui:
         self.renderSurface.fill([255, 255, 255])
 
         # Update all grouped elements
-        for group in groups:
-            group.update(events)
+        for window in groups:
+            window.update(events, scaling = self.scalingRatio)
 
-        self.parentSurface.blit(self.renderSurface, [0, 0])
+        self.renderToParentRatio = [
+            self.parentSurface.get_width() / self.renderRes[0],
+            self.parentSurface.get_height() / self.renderRes[1]
+        ]
+        self.scalingRatio = min(self.renderToParentRatio)
+
+        self.parentSurface.blit(
+            pygame.transform.scale(
+                self.renderSurface,
+                [self.renderRes[0] * self.scalingRatio, self.renderRes[1] * self.scalingRatio]
+            ),
+            [0, 0]
+        )
 
 def _guiTest():
-    screen = pygame.display.set_mode([1600, 900])
+    screen = pygame.display.set_mode([800, 450], pygame.RESIZABLE)
     pygame.display.set_caption("GUI Test")
     clock = pygame.time.Clock()
     run = True
@@ -127,7 +141,7 @@ def _guiTest():
             if event.type == pygame.QUIT:
                 run = False
 
-        screen.fill([255, 255, 255])
+        screen.fill([0, 0, 0])
 
         gui.draw(events)
 

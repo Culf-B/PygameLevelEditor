@@ -71,7 +71,7 @@ class Group:
             element.activated = False
 
 class Window(Group):
-    def __init__(self, screen, rect, colorscheme, borderwidth = None):
+    def __init__(self, screen, rect, colorscheme, scaling = 1, borderwidth = None):
         super().__init__()
 
         self.screen = screen
@@ -79,6 +79,7 @@ class Window(Group):
         self.colorscheme = colorscheme
         self.rect = rect
         self.surface = pygame.surface.Surface([rect.w, rect.h])
+        self.scaling = scaling # When parentsurface is being rescaled, scaling makes it possible to convert a mouse position to the actual rendered size
 
     def getWidth(self):
         return self.rect.w
@@ -89,11 +90,13 @@ class Window(Group):
     def getSurface(self):
         return self.surface
     
-    def update(self, events):
+    def update(self, events, scaling = 1):
+        self.scaling = scaling
+
         self.clearSurface()
 
         for element in self.elements:
-            element.update(events, self.rect.topleft)
+            element.update(events, self.rect.topleft, self.scaling)
 
         self.drawBorder()
         self.drawOnScreen()
@@ -114,10 +117,13 @@ class Element:
         self.activated = False
         self.groups = []
 
-    def update(self, events, positionoffset = None):
+    def update(self, events, positionoffset = None, scaling = 1):
+        # Bad looking if statement for compatability
         if self.activated:
-            if positionoffset != None:
-                self.eventupdate(events, positionoffset)
+            # Updated elements supporting extra arguments
+            if positionoffset != None or scaling != 1: # Only used when non-default arguments are supplied
+                self.eventupdate(events, positionoffset, scaling)
+            # Elements that do not support extra arguments
             else:
                 self.eventupdate(events)
             self.draw()
@@ -375,8 +381,8 @@ class ObjectScrollBox(Element):
         self.maxScroll = 0
         self.objectsPrLine = 0
 
-    def eventupdate(self, events, positionoffset = [0, 0]):
-        self.tempMpos = pygame.mouse.get_pos()
+    def eventupdate(self, events, positionoffset = [0, 0], scaling = 1):
+        self.tempMpos = [p * (1 / scaling) for p in pygame.mouse.get_pos()]
         self.scroll = False
         self.collisionrect = pygame.Rect(self.rect.x + positionoffset[0], self.rect.y + positionoffset[1], self.rect.w, self.rect.h)
         if self.collisionrect.collidepoint(self.tempMpos):
@@ -394,7 +400,7 @@ class ObjectScrollBox(Element):
                 
                 elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
                     for obj in self.objects:
-                        obj.mouseevent([event.pos[0] - self.collisionrect.x, event.pos[1] - self.collisionrect.y])
+                        obj.mouseevent([event.pos[0] * (1 / scaling) - self.collisionrect.x, event.pos[1] * (1 / scaling) - self.collisionrect.y])
         else:
             self.hover = False
 
