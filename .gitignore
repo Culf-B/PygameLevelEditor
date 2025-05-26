@@ -1,6 +1,7 @@
 # Custom
 design/
 projects/*
+.vscode/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
