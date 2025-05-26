@@ -13,6 +13,15 @@ import pygame
 pygame.init()
 all_elements = []
 groups = []
+windows = []
+
+defaultColorScheme = {
+    "standard": [
+        [0, 0, 0],
+        [0, 0, 0],
+        [255, 255, 255]
+    ]
+}
 
 def update_all():
     for element in all_elements:
@@ -38,6 +47,7 @@ def remove_elements(*args):
 class Group:
     def __init__(self):
         self.elements = []
+        self.activated = True
         groups.append(self)
 
     def update(self, events):
@@ -63,16 +73,22 @@ class Group:
                         break
 
     def activate_all(self):
+        self.activated = True
         for element in self.elements:
             element.activated = True
 
     def deactivate_all(self):
+        self.activated = False
         for element in self.elements:
             element.activated = False
+    
+    def isActive(self):
+        return self.activated
 
 class Window(Group):
     def __init__(self, screen, rect, colorscheme, scaling = 1, borderwidth = None):
         super().__init__()
+        windows.append(self)
 
         self.screen = screen
         self.borderWidth = borderwidth
@@ -91,15 +107,16 @@ class Window(Group):
         return self.surface
     
     def update(self, events, scaling = 1):
-        self.scaling = scaling
+        if self.activated:
+            self.scaling = scaling
 
-        self.clearSurface()
+            self.clearSurface()
 
-        for element in self.elements:
-            element.update(events, self.rect.topleft, self.scaling)
+            for element in self.elements:
+                element.update(events, self.rect.topleft, self.scaling)
 
-        self.drawBorder()
-        self.drawOnScreen()
+            self.drawBorder()
+            self.drawOnScreen()
     
     def clearSurface(self):
         self.surface.fill(self.colorscheme[2])
@@ -154,10 +171,15 @@ class Button(Element):
     def runcommand(self):
         self.command()
 
-    def eventupdate(self, offsetEventPos = [0, 0]):
+    def eventupdate(self, events, positionoffset = [0, 0], scaling = 1):
         self.eventRect = self.rect.copy()
-        self.eventRect.x += offsetEventPos[0]
-        self.eventRect.y += offsetEventPos[1]
+        self.eventRect.x += positionoffset[0]
+        self.eventRect.y += positionoffset[1]
+        self.eventRect.x *= scaling
+        self.eventRect.y *= scaling
+        self.eventRect.width *= scaling
+        self.eventRect.height *= scaling
+
         if self.eventRect.collidepoint(pygame.mouse.get_pos()):
             self.hover = True
             if pygame.mouse.get_pressed()[0]:
@@ -180,7 +202,6 @@ class Button(Element):
         if self.bordersize > 0: pygame.draw.rect(self.surface, self.curColors[1], pygame.Rect(0,0,self.rect.width,self.rect.height),self.bordersize) # Border
         self.rendered_text = self.font.render(self.text, True, self.curColors[0])
         self.surface.blit(self.rendered_text, (self.rect.width//2-self.rendered_text.get_width()//2,self.rect.height//2-self.rendered_text.get_height()//2)) # Text
-
         self.screen.blit(self.surface, (self.rect.x,self.rect.y))
 
 class Text(Element):
@@ -323,6 +344,80 @@ class Scrolledtext(Element):
 
         self.screen.blit(self.surface, (self.rect.x, self.rect.y))
 
+class Input(Element):
+    def __init__(self, screen, rect, colorscheme, font, bordersize = 1, text="", allign = "LEFT", activated = True):
+        super().__init__()
+
+        self.screen = screen
+        self.rect = rect
+        self.surface = pygame.Surface(self.rect.size, pygame.SRCALPHA, 32)
+        self.colorscheme = colorscheme
+        self.font = font
+        self.bordersize = bordersize
+        self.text = text
+        self.allign = allign
+        self.activated = activated
+
+        self.click = False
+        self.selected = False
+
+    def eventupdate(self, events, positionoffset = [0, 0], scaling = 1):
+        self.eventRect = self.rect.copy()
+        self.eventRect.x += positionoffset[0]
+        self.eventRect.y += positionoffset[1]
+        self.eventRect.x *= scaling
+        self.eventRect.y *= scaling
+        self.eventRect.width *= scaling
+        self.eventRect.height *= scaling
+
+        if self.eventRect.collidepoint(pygame.mouse.get_pos()):
+            self.hover = True
+        else:
+            self.hover = False
+
+        if pygame.mouse.get_pressed()[0]:
+            self.click = True
+        else:
+            if self.click:
+                if self.hover:
+                    self.click = False
+                    self.selected = True
+                else:
+                    self.click = False
+                    self.selected = False
+
+        if self.selected:
+            for event in events:
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_BACKSPACE:
+                        self.text = self.text[:-1]
+                    else:
+                        self.text += event.unicode
+
+    def draw(self):
+        # Choose colors
+        if self.selected:
+            self.curColors = self.colorscheme["selected"]
+        elif self.hover:
+            self.curColors = self.colorscheme["hover"]
+        else:
+            self.curColors = self.colorscheme["standard"]
+
+        # Draw
+        self.surface.fill(self.curColors[2]) # BG
+        if self.bordersize > 0: pygame.draw.rect(self.surface, self.curColors[1], pygame.Rect(0,0,self.rect.width,self.rect.height),self.bordersize) # Border
+        self.rendered_text = self.font.render(self.text, True, self.curColors[0])
+        if self.allign == "CENTER":
+            self.surface.blit(self.rendered_text, (self.rect.width//2-self.rendered_text.get_width()//2,self.rect.height//2-self.rendered_text.get_height()//2)) # Text
+        elif self.allign == "LEFT":
+            self.surface.blit(self.rendered_text, (5,self.rect.height//2-self.rendered_text.get_height()//2)) # Text
+        elif self.allign == "RIGHT":
+            self.surface.blit(self.rendered_text, (self.rect.width-5-self.rendered_text.get_width(),self.rect.height//2-self.rendered_text.get_height()//2))
+        self.screen.blit(self.surface, (self.rect.x,self.rect.y))
+
+    def getText(self):
+        return self.text
+
 class RenderWindow(Element):
     def __init__(self, screen, rect):
         super().__init__()
@@ -357,7 +452,7 @@ class RenderWindow(Element):
         self.screen.blit(self.surface, self.rect.topleft)
 
 class ObjectScrollBox(Element):
-    def __init__(self, screen, rect, objectSize, colorscheme, objects = [], bordersize = 2, activated = True):
+    def __init__(self, screen, rect, objectSize, colorscheme, objectColorScheme = defaultColorScheme, objectBorderSize = 5, objects = [], bordersize = 2, activated = True):
         super().__init__()
 
         self.screen = screen
@@ -366,13 +461,15 @@ class ObjectScrollBox(Element):
         self.surface = pygame.surface.Surface([self.rect.w, self.rect.h])
 
         self.colorscheme = colorscheme
+        self.objectColorScheme = objectColorScheme
         self.bordersize = bordersize
-        
+        self.objectBorderSize = objectBorderSize
+
         self.activated = activated
 
         self.objects = objects
         for obj in self.objects:
-            obj.setup(self.objectSize, self.surface)
+            obj.setup(self.objectSize, self.surface, self.objectColorScheme, objectBorderSize)
 
         self.hover = False
         self.scroll = False
@@ -430,7 +527,34 @@ class ObjectScrollBox(Element):
     def addObjects(self, *args):
         for obj in args:
             self.objects.append(obj)
-            obj.setup(self.objectSize, self.surface)
+            obj.setup(self.objectSize, self.surface, self.objectColorScheme, self.objectBorderSize)
+
+    def getObjects(self):
+        return self.objects
+
+class LineBasedObjectScrollBox(ObjectScrollBox):
+    def updateContentDimensions(self):
+        self.objectsPrLine = 1
+        self.maxScroll = len(self.objects) * self.objectSize[1]
+
+    def draw(self):
+        self.updateContentDimensions()
+
+        # Background
+        self.surface.fill(self.colorscheme[2])
+
+        # Content
+        self.contentStartX = self.bordersize
+        self.contentStartY = self.bordersize
+
+        for i in range(len(self.objects)):
+            self.objects[i].draw([self.contentStartX, self.contentStartY + (i // self.objectsPrLine) * self.objectSize[1] - self.contentposition])
+
+        # Border
+        pygame.draw.rect(self.surface, self.colorscheme[1], pygame.Rect(0, 0, self.surface.get_width(), self.surface.get_height()), self.bordersize)
+
+        # Export to parent
+        self.screen.blit(self.surface, [self.rect.x, self.rect.y])
 
 class ScrollCompatibleObject:
     def __init__(self):
@@ -439,18 +563,21 @@ class ScrollCompatibleObject:
         self.size = [0, 0]
         self.exportSurface = None
 
-    def setup(self, objectSize, parentSurface):
+    def setup(self, objectSize, parentSurface, colorScheme = defaultColorScheme, borderWidth = 5):
         self.size = objectSize
         self.exportSurface = pygame.surface.Surface(self.size)
         self.parentSurface = parentSurface
         self.setupDone = True
 
+        self.colorScheme = colorScheme
+        self.borderWidth = borderWidth
+
     def mouseevent(self, pos):
         if self.setupDone:
-            if pygame.rect.Rect(self.latestPos, self.size).collidepoint(pos):
-                self.clickevent()
+            clickHit = pygame.rect.Rect(self.latestPos, self.size).collidepoint(pos)
+            self.clickevent(clickHit)
 
-    def clickevent(self):
+    def clickevent(self, hit):
         pass
 
     def draw(self, pos):
@@ -462,5 +589,29 @@ class ScrollCompatibleObject:
             self.parentSurface.blit(self.exportSurface, pos)
 
     def updateGraphics(self):
-        self.exportSurface.fill([255, 255, 255])
-        pygame.draw.rect(self.exportSurface, [0, 0, 0], pygame.Rect(0, 0, self.size[0], self.size[1]), 5)
+        self.exportSurface.fill(self.colorScheme["standard"][2])
+        pygame.draw.rect(self.exportSurface, self.colorScheme["standard"][1], pygame.Rect(0, 0, self.size[0], self.size[1]), self.borderWidth)
+
+class SelectableScrollObject(ScrollCompatibleObject):
+    def __init__(self, text, font):
+        super().__init__()
+        self.text = text
+        self.font = font
+        self.selected = False
+
+    def clickevent(self, hit):
+        if hit:
+            self.selected = True
+        else:
+            self.selected = False
+
+    def updateGraphics(self):
+        if self.selected:
+            self.curColors = self.colorScheme["selected"]
+        else:
+            self.curColors = self.colorScheme["standard"]
+
+        self.exportSurface.fill(self.curColors[2])
+        self.renderedText = self.font.render(self.text, True, self.curColors[0])
+        self.exportSurface.blit(self.renderedText, [0, self.size[1] // 2 - self.renderedText.get_height() // 2])
+        pygame.draw.rect(self.exportSurface, self.curColors[1], pygame.Rect(0, 0, self.size[0], self.size[1]), self.borderWidth)
