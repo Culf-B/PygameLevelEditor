@@ -3,6 +3,9 @@ import subprocess
 import platform
 import json
 import shutil
+import pygame
+
+import spriteTypes
 
 class ProjectManager:
     """
@@ -17,10 +20,22 @@ class ProjectManager:
             os.mkdir(self.absProjectsPath)
 
         self.currentProjectName = None
+        self.currentProject = None
+        self.currentProjectPath = None
+        self.currentProjectData = None
 
     def load(self, projectName):
         print(f'Loading project "{projectName}"...')
         self.currentProjectName = projectName
+        self.currentProjectPath = os.path.join(self.absProjectsPath, projectName)
+        with open(os.path.join(self.currentProjectPath, "project.json"), "r") as f:
+            self.currentProjectData = json.load(f)
+
+        self.currentProject = Project(
+            self.currentProjectData["sprites"],
+            self.currentProjectData["level"],
+            self.currentProjectPath
+        )
 
     def save(self):
         print("Saving not implemented!")
@@ -106,6 +121,26 @@ class ProjectManager:
         folders = [entry for entry in entries if os.path.isdir(os.path.join(self.absProjectsPath, entry))]
         return folders
 
+class Project:
+    def __init__(self, sprites, level, path):
+        self.sprites = pygame.sprite.Group()
+
+        for name, sprite in sprites.items():
+            # Update sprite data
+            sprite["name"] = name
+            sprite["absPath"] = os.path.join(path, "assets", sprite["path"])
+
+            # Create tiletype object
+            if sprite["type"] == "tile":
+                newsprite = spriteTypes.Tile(sprite)
+                self.sprites.add(newsprite)
+                print(f'Loaded sprite with name "{sprite["name"]}"')
+            else:
+                print(f'Invalid sprite type "{sprite["type"]}"!')
+
+    def update(self, delta = 0):
+        self.sprites.update(delta)
+
 if __name__ == "__main__":
+    pygame.init()
     pm = ProjectManager()
-    pm.delete("test")
