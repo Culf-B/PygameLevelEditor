@@ -15,11 +15,34 @@ all_elements = []
 groups = []
 windows = []
 
+defaultSimpleColorScheme = [
+    [0, 0, 0],
+    [0, 0, 0],
+    [255, 255, 255]
+]
+
 defaultColorScheme = {
     "standard": [
         [0, 0, 0],
         [0, 0, 0],
         [255, 255, 255]
+    ]
+}
+defaultButtonColorScheme = {
+    "standard": [
+        [0, 0, 0],  # Text color
+        [0, 0, 0],        # Border color
+        [200, 200, 200]   # Background color
+    ],
+    "hover": [
+        [0, 0, 0],  # Text color (white)
+        [50, 50, 50],     # Border color
+        [150, 150, 150]   # Background color
+    ],
+    "click": [
+        [0, 0, 0],  # Text color
+        [100, 100, 100],  # Border color
+        [100, 100, 100]   # Background color
     ]
 }
 
@@ -152,7 +175,7 @@ class Element:
         return
 
 class Button(Element):
-    def __init__(self, screen, rect, colorscheme, font, bordersize=2, text="", command=lambda: None, activated=True):
+    def __init__(self, screen, rect, colorscheme, font, bordersize=2, text="", command=lambda: None, commandArg = None, activated=True):
         super().__init__()
 
         self.screen = screen
@@ -163,13 +186,23 @@ class Button(Element):
         self.bordersize = bordersize
         self.text = text
         self.command = command
+        self.commandArg = commandArg
         self.activated = activated
         
         self.click = False
         self.hover = False
 
     def runcommand(self):
-        self.command()
+        if self.commandArg == None:
+            self.command()
+        else:
+            self.command(self.commandArg)
+
+    def getColorScheme(self):
+        return self.colors
+    
+    def setColorScheme(self, colors):
+        self.colors = colors
 
     def eventupdate(self, events, positionoffset = [0, 0], scaling = 1):
         self.eventRect = self.rect.copy()
@@ -524,13 +557,135 @@ class ObjectScrollBox(Element):
         # Export to parent
         self.screen.blit(self.surface, [self.rect.x, self.rect.y])
 
-    def addObjects(self, *args):
-        for obj in args:
+    def addObjects(self, objects):
+        for obj in objects:
             self.objects.append(obj)
             obj.setup(self.objectSize, self.surface, self.objectColorScheme, self.objectBorderSize)
 
     def getObjects(self):
         return self.objects
+
+class MultiObjectScrollBox(Element):
+    def __init__(self, screen, rect, pageSettings = {}, activated = True, colorscheme = defaultSimpleColorScheme, buttonColorScheme = defaultButtonColorScheme, bordersize = 2, font = pygame.font.SysFont("Consolas", 25)):
+        super().__init__()
+
+        self.exportSurface = screen
+        self.rect = rect
+        self.navRect = pygame.Rect(0, 0, self.rect.width, self.rect.height * 0.1)
+        self.scrollBoxRect = pygame.Rect(0, self.rect.height * 0.1, self.rect.width, self.rect.height * 0.9)
+
+        self.mainSurface = pygame.surface.Surface(self.rect.size)
+        self.navSurface = pygame.surface.Surface(self.navRect.size)
+        self.scrollBoxSurface = pygame.surface.Surface(self.scrollBoxRect.size)
+
+        self.colorscheme = colorscheme
+        self.buttonColorScheme = buttonColorScheme
+        self.bordersize = bordersize
+        self.font = font
+
+        self.activated = activated
+
+        # Page setup
+        self.pageSettings = pageSettings
+        self.pageNames = list(pageSettings)
+        self.currentPage = self.pageNames[0]
+        self.navButtons = {}
+        self.scrollBoxes = {}
+
+        # Nav button for each page
+        for i in range(len(self.pageNames)):
+            self.navButtons[self.pageNames[i]] = Button(
+                self.navSurface,
+                pygame.Rect(
+                    i * self.navRect.width / len(self.pageNames),
+                    0,
+                    self.navRect.width / len(self.pageNames),
+                    self.navRect.height
+                ),
+                self.buttonColorScheme,
+                self.font,
+                text = self.pageNames[i].capitalize(),
+                command = self.selectPage,
+                commandArg = self.pageNames[i],
+                activated = True
+            )
+
+        # ObjectScrollBox for each element
+        for pagename, pagesettings in self.pageSettings.items():
+            self.scrollBoxes[pagename] = ObjectScrollBox(
+                self.scrollBoxSurface,
+                pygame.Rect(
+                    0,
+                    0,
+                    self.scrollBoxRect.width,
+                    self.scrollBoxRect.height
+                ),
+                pagesettings["objectSize"],
+                self.colorscheme,
+                pagesettings["objectColorScheme"],
+                pagesettings["objectBorderSize"],
+                pagesettings["objects"],
+                self.bordersize,
+                True
+            )
+    
+    def selectPage(self, pageName):
+        self.currentPage = pageName
+
+    def eventupdate(self, events, positionoffset = [0, 0], scaling = 1):
+        for button in self.navButtons.values():
+                
+            button.eventupdate(
+                events,
+                positionoffset = [positionoffset[0] + self.rect.x + self.navRect.x, positionoffset[1] + self.rect.y + self.navRect.y],
+                scaling = scaling
+            )
+        self.scrollBoxes[self.currentPage].eventupdate(
+            events,
+            positionoffset = [positionoffset[0] + self.rect.x + self.scrollBoxRect.x, positionoffset[1] + self.rect.y + self.scrollBoxRect.y],
+            scaling = scaling
+        )
+
+    def draw(self):
+        tempColorScheme = None
+        for button in self.navButtons.values():
+
+            if button.commandArg == self.currentPage:
+                tempColorScheme = button.getColorScheme()
+                button.setColorScheme({
+                    "standard": tempColorScheme["click"],
+                    "hover": tempColorScheme["click"],
+                    "click": tempColorScheme["click"]
+                })
+
+            button.draw()
+
+            if tempColorScheme != None:
+                button.setColorScheme(tempColorScheme)
+                tempColorScheme = None
+
+        self.scrollBoxes[self.currentPage].draw()
+
+        self.mainSurface.blit(self.navSurface, [self.navRect.x, self.navRect.y])
+        self.mainSurface.blit(self.scrollBoxSurface, [self.scrollBoxRect.x, self.scrollBoxRect.y])
+        
+        pygame.draw.rect(self.mainSurface, self.colorscheme[1], self.rect, self.bordersize)
+
+        self.exportSurface.blit(self.mainSurface, [self.rect.x, self.rect.y])
+
+    def addObjects(self, page, objects):
+
+        if page in self.pageNames:
+            self.scrollBoxes[page].addObjects(objects)
+        else:
+            print(f'Page "{page}" doesn\'t exists!')
+
+    def getObjects(self, page):
+        if page in self.pageNames:
+            return self.scrollBoxes[page].getObjects
+        else:
+            print(f'Page "{page}" doesn\'t exists!')
+            return None
 
 class LineBasedObjectScrollBox(ObjectScrollBox):
     def updateContentDimensions(self):
@@ -614,4 +769,20 @@ class SelectableScrollObject(ScrollCompatibleObject):
         self.exportSurface.fill(self.curColors[2])
         self.renderedText = self.font.render(self.text, True, self.curColors[0])
         self.exportSurface.blit(self.renderedText, [0, self.size[1] // 2 - self.renderedText.get_height() // 2])
+        pygame.draw.rect(self.exportSurface, self.curColors[1], pygame.Rect(0, 0, self.size[0], self.size[1]), self.borderWidth)
+
+class SelectableSpriteScrollObject(SelectableScrollObject):
+    def __init__(self, sprite):
+        self.selected = False
+        self.sprite = sprite
+
+    def updateGraphics(self, delta = 0):
+        if self.selected:
+            self.curColors = self.colorScheme["selected"]
+        else:
+            self.curColors = self.colorScheme["standard"]
+
+        self.exportSurface.fill(self.curColors[2])
+        
+        self.exportSurface.blit(self.sprite.update(delta), [0, 0])
         pygame.draw.rect(self.exportSurface, self.curColors[1], pygame.Rect(0, 0, self.size[0], self.size[1]), self.borderWidth)

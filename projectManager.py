@@ -116,6 +116,9 @@ class ProjectManager:
     def getSelectedProject(self):
         return self.currentProjectName
     
+    def getSelectedProjectObject(self):
+        return self.currentProject
+    
     def getProjects(self):
         entries = os.listdir(self.absProjectsPath)
         folders = [entry for entry in entries if os.path.isdir(os.path.join(self.absProjectsPath, entry))]
@@ -140,6 +143,9 @@ class Project:
 
     def update(self, delta = 0):
         self.sprites.update(delta)
+
+    def getSprites(self):
+        return self.sprites
 
 if __name__ == "__main__":
     pygame.init()

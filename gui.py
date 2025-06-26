@@ -244,7 +244,8 @@ class Gui:
             ],
             1
         ) # Overview and selection of tools such as delete, place and brushes
-        self.wBottomTiles = Window(
+        
+        self.wBottomSprites = Window(
             self.renderSurface,
             self.rBottom,
             [
@@ -255,23 +256,33 @@ class Gui:
             1
         ) # Overview and selection of tiles
 
-        self.wBottomTiles.add_elements(
-            ObjectScrollBox(
-                self.wBottomTiles.getSurface(),
-                pygame.Rect(0, 0, self.wBottomTiles.getWidth(), self.wBottomTiles.getHeight()),
-                [50, 50],
-                [
-                    [0, 0, 0],
-                    [50, 50, 100],
-                    [100, 100, 100]
-                ],
-                objects = [ScrollCompatibleObject() for _ in range(100)]
-            )
+        self.bottomMultiBox = MultiObjectScrollBox(
+            self.wBottomSprites.getSurface(),
+            pygame.Rect(0, 0, self.wBottomSprites.getWidth(), self.wBottomSprites.getHeight()),
+            {
+                "sprites": {
+                    "objectSize": [50, 50],
+                    "objectColorScheme": self.standardScrolledSelectorObjectColorScheme,
+                    "objectBorderSize": 2,
+                    "objects": []
+                },
+                "test": {
+                    "objectSize": [50, 50],
+                    "objectColorScheme": self.standardScrolledSelectorObjectColorScheme,
+                    "objectBorderSize": 1,
+                    "objects": []
+                }
+            }
+        )
+
+
+        self.wBottomSprites.add_elements(
+            self.bottomMultiBox
         )
 
         # --- Activate default groups ---
         self.wMainRender.activate_all()
-        self.wBottomTiles.activate_all()
+        self.wBottomSprites.activate_all()
         self.wRightProjectManager.activate_all()
 
         # --- Deactivate non-default groups ---
@@ -286,8 +297,17 @@ class Gui:
         for obj in objects:
             if obj.selected:
                 self.projectManager.load(obj.text)
+                
+                # Place sprites in sprite scrollbox
+                self.bottomMultiBox.addObjects("sprites", [
+                    SelectableSpriteScrollObject(sprite) for sprite in self.projectManager.getSelectedProjectObject().getSprites()
+                ])
+
                 return
         print("No project selected!")
+
+    def addSpriteType(self, name, sprites):
+        pass
 
     def draw(self, events):
         # Update contents of wRightProjectManager
