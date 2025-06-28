@@ -21,6 +21,9 @@ class Gui:
         self.wRightCoeffs = [0.3, 0.7]
         self.wBottomCoeffs = [1, 0.3]
 
+        # Temporary memory
+        self.currentInfoSprite = None
+
         # Color schemes
         self.standardLabelColorScheme = {
             "standard": [
@@ -260,7 +263,7 @@ class Gui:
             self.wBottomSprites.getSurface(),
             pygame.Rect(0, 0, self.wBottomSprites.getWidth(), self.wBottomSprites.getHeight()),
             {
-                "sprites": {
+                "all sprites": {
                     "objectSize": [50, 50],
                     "objectColorScheme": self.standardScrolledSelectorObjectColorScheme,
                     "objectBorderSize": 2,
@@ -299,7 +302,7 @@ class Gui:
                 self.projectManager.load(obj.text)
                 
                 # Place sprites in sprite scrollbox
-                self.bottomMultiBox.addObjects("sprites", [
+                self.bottomMultiBox.addObjects("all sprites", [
                     SelectableSpriteScrollObject(sprite) for sprite in self.projectManager.getSelectedProjectObject().getSprites()
                 ])
 
@@ -310,6 +313,21 @@ class Gui:
         pass
 
     def draw(self, events):
+        # Check for selections in bottomMultiBox
+        self.currentInfoSprite = None
+        for obj in self.bottomMultiBox.getObjects(self.bottomMultiBox.getCurrentPageName()):
+            if obj.isSelected():
+                self.currentInfoSprite = obj.getSprite()
+                break
+
+        # Update activated windows
+        if self.currentInfoSprite == None:
+            self.wRightOptions.deactivate_all()
+            self.wRightProjectManager.activate_all()
+        else:
+            self.wRightOptions.activate_all()
+            self.wRightProjectManager.deactivate_all()
+
         # Update contents of wRightProjectManager
         if self.wRightProjectManager.activated:
             self.wRight_projectStatusText.text = f'Project: {self.projectManager.getSelectedProject()}'

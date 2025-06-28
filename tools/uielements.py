@@ -682,10 +682,13 @@ class MultiObjectScrollBox(Element):
 
     def getObjects(self, page):
         if page in self.pageNames:
-            return self.scrollBoxes[page].getObjects
+            return self.scrollBoxes[page].getObjects()
         else:
             print(f'Page "{page}" doesn\'t exists!')
             return None
+        
+    def getCurrentPageName(self):
+        return self.currentPage
 
 class LineBasedObjectScrollBox(ObjectScrollBox):
     def updateContentDimensions(self):
@@ -771,7 +774,17 @@ class SelectableScrollObject(ScrollCompatibleObject):
         self.exportSurface.blit(self.renderedText, [0, self.size[1] // 2 - self.renderedText.get_height() // 2])
         pygame.draw.rect(self.exportSurface, self.curColors[1], pygame.Rect(0, 0, self.size[0], self.size[1]), self.borderWidth)
 
+    def isSelected(self):
+        return self.selected
+
 class SelectableSpriteScrollObject(SelectableScrollObject):
+    '''
+    A selectable scroll object with a sprite as its icon.
+
+    Requirements for sprite:
+    - Sprite has to return a surface when its update function is called.
+    - Sprites update function takes delta time as its only parameter
+    '''
     def __init__(self, sprite):
         self.selected = False
         self.sprite = sprite
@@ -786,3 +799,6 @@ class SelectableSpriteScrollObject(SelectableScrollObject):
         
         self.exportSurface.blit(self.sprite.update(delta), [0, 0])
         pygame.draw.rect(self.exportSurface, self.curColors[1], pygame.Rect(0, 0, self.size[0], self.size[1]), self.borderWidth)
+
+    def getSprite(self):
+        return self.sprite
