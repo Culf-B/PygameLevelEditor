@@ -13,6 +13,8 @@ pm = projectManager.ProjectManager()
 gm = gui.Gui(screen, pm)
 
 while run:
+    delta = clock.tick(60)
+    deltaInSec = delta / 1000
     events = pygame.event.get()
     for event in events:
         if event.type == pygame.QUIT:
@@ -20,7 +22,6 @@ while run:
 
     screen.fill([0, 0, 0])
 
-    gm.draw(events)
+    gm.draw(events, deltaInSec)
 
-    clock.tick(60)
     pygame.display.update()

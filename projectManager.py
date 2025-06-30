@@ -128,6 +128,8 @@ class Project:
     def __init__(self, sprites, level, path):
         self.sprites = pygame.sprite.Group()
 
+        self.path = path
+
         for name, sprite in sprites.items():
             # Update sprite data
             sprite["name"] = name
@@ -141,8 +143,31 @@ class Project:
             else:
                 print(f'Invalid sprite type "{sprite["type"]}"!')
 
+    def initSprite(self, name, spritedata):
+        # Update sprite data
+        spritedata["name"] = name
+        spritedata["absPath"] = os.path.join(self.path, "assets", spritedata["path"])
+
+        # Create tiletype object
+        if spritedata["type"] == "tile":
+            newsprite = spriteTypes.Tile(spritedata)
+            self.sprites.add(newsprite)
+            print(f'Loaded sprite with name "{spritedata["name"]}"')
+            return 0 # No error
+        else:
+            print(f'Invalid sprite type "{spritedata["type"]}"!')
+            return 1 # Error
+
     def update(self, delta = 0):
         self.sprites.update(delta)
+
+    def updateSprite(self, sprite, newSpriteData):
+        # Init sprite and remove old sprite if no error happens
+        self.tempReturnStatus = self.initSprite(sprite.getName(), newSpriteData)
+        if self.tempReturnStatus == 0:
+            self.sprites.remove(sprite)
+        return self.tempReturnStatus
+
 
     def getSprites(self):
         return self.sprites

@@ -92,6 +92,12 @@ class BaseType(pygame.sprite.Sprite):
     
     def updateStandard(self, delta = 0):
         return self.image
+    
+    def getName(self):
+        return self.data["name"]
+    
+    def getSpriteData(self):
+        return self.data
 
     def instantiateGameObject(self):
         '''
@@ -114,7 +120,7 @@ class Tile(BaseType):
             if "hitbox" in self.properties:
                 self.relativeHitbox = pygame.Rect(self.properties["hitbox"])
             else:
-                self.relativeHitbox = pygame.Rect(0, 0, self.size[0], self.size[1])
+                self.relativeHitbox = pygame.Rect(0, 0, self.rSize[0], self.rSize[1])
 
     def instantiateGameObject(self):
         pass

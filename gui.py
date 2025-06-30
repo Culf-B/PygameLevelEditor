@@ -235,6 +235,19 @@ class Gui:
             1
         ) # UI for configuring selected tile
 
+        self.wRightOptionsScrollBox = SpriteOptionsBox(
+            self.wRightOptions.getSurface(),
+            pygame.Rect(0, 0, self.wRightOptions.getWidth(), self.wRightOptions.getHeight()),
+            [self.wRightOptions.getWidth(), 50],
+            objectFont = self.standardFont,
+            colorscheme = [[0,0,0], [0,0,0], [255, 255, 255]],
+            objectColorScheme = self.standardInputColorScheme
+        )
+        
+        self.wRightOptions.add_elements(
+            self.wRightOptionsScrollBox
+        )
+
         # --- Bottombar ---
         # Different groups for different bottombar options
         self.wBottomTools = Window(
@@ -309,11 +322,22 @@ class Gui:
                 return
         print("No project selected!")
 
-    def addSpriteType(self, name, sprites):
-        pass
+    def updateInfoOnSelectedSprite(self, prevSprite, newSprite):
+        # Update prev sprite
+        if prevSprite != None and self.wRightOptionsScrollBox.isSpriteDataLoaded():
+            self.projectManager.getSelectedProjectObject().updateSprite(prevSprite, self.wRightOptionsScrollBox.getSpriteData())
 
-    def draw(self, events):
+        # Load data and update ui for new info sprite
+        if newSprite != None:
+            self.wRightOptionsScrollBox.loadSpriteData(newSprite.getSpriteData())
+        else:
+            self.wRightOptionsScrollBox.resetSpriteData()
+        
+
+    def draw(self, events, deltaInSec):
+
         # Check for selections in bottomMultiBox
+        self.prevSelectedInfoSprite = self.currentInfoSprite
         self.currentInfoSprite = None
         for obj in self.bottomMultiBox.getObjects(self.bottomMultiBox.getCurrentPageName()):
             if obj.isSelected():
@@ -321,13 +345,17 @@ class Gui:
                 break
 
         # Update activated windows
-        if self.currentInfoSprite == None:
-            self.wRightOptions.deactivate_all()
-            self.wRightProjectManager.activate_all()
-        else:
-            self.wRightOptions.activate_all()
-            self.wRightProjectManager.deactivate_all()
+        if self.currentInfoSprite != self.prevSelectedInfoSprite:
+            self.updateInfoOnSelectedSprite(self.prevSelectedInfoSprite, self.currentInfoSprite)
 
+            if self.currentInfoSprite == None:
+                self.wRightOptions.deactivate_all()
+                self.wRightProjectManager.activate_all()
+            else:
+                self.wRightOptions.activate_all()
+                self.wRightProjectManager.deactivate_all()
+                
+            
         # Update contents of wRightProjectManager
         if self.wRightProjectManager.activated:
             self.wRight_projectStatusText.text = f'Project: {self.projectManager.getSelectedProject()}'
@@ -343,7 +371,7 @@ class Gui:
 
         # Update all grouped elements
         for window in windows:
-            window.update(events, scaling = self.scalingRatio)
+            window.update(events, scaling = self.scalingRatio, deltaInSec = deltaInSec)
 
         self.renderToParentRatio = [
             self.parentSurface.get_width() / self.renderRes[0],

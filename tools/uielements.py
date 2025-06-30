@@ -28,6 +28,25 @@ defaultColorScheme = {
         [255, 255, 255]
     ]
 }
+
+defaultInputColorScheme = {
+    "standard": [
+        [0, 0, 0],  # Text color
+        [0, 0, 0],        # Border color
+        [200, 200, 200]   # Background color
+    ],
+    "hover": [
+        [0, 0, 0],  # Text color (white)
+        [100, 100, 100],     # Border color
+        [220, 220, 220]   # Background color
+    ],
+    "selected": [
+        [0, 0, 0],  # Text color
+        [100, 100, 255],  # Border color
+        [255, 255, 255]   # Background color
+    ]
+}
+
 defaultButtonColorScheme = {
     "standard": [
         [0, 0, 0],  # Text color
@@ -129,14 +148,14 @@ class Window(Group):
     def getSurface(self):
         return self.surface
     
-    def update(self, events, scaling = 1):
+    def update(self, events, scaling = 1, deltaInSec = 0):
         if self.activated:
             self.scaling = scaling
 
             self.clearSurface()
 
             for element in self.elements:
-                element.update(events, self.rect.topleft, self.scaling)
+                element.update(events, self.rect.topleft, self.scaling, deltaInSec)
 
             self.drawBorder()
             self.drawOnScreen()
@@ -157,7 +176,7 @@ class Element:
         self.activated = False
         self.groups = []
 
-    def update(self, events, positionoffset = None, scaling = 1):
+    def update(self, events, positionoffset = None, scaling = 1, deltaInSec = 0):
         # Bad looking if statement for compatability
         if self.activated:
             # Updated elements supporting extra arguments
@@ -166,7 +185,7 @@ class Element:
             # Elements that do not support extra arguments
             else:
                 self.eventupdate(events)
-            self.draw()
+            self.draw(deltaInSec)
 
     def eventupdate(self, *args):
         return
@@ -224,7 +243,7 @@ class Button(Element):
                     
         else: self.hover, self.click = False, False
 
-    def draw(self):
+    def draw(self, *args, **kwargs):
         # Choose colors
         if self.click:      self.curColors = self.colors["click"]
         elif self.hover:    self.curColors = self.colors["hover"]
@@ -251,7 +270,7 @@ class Text(Element):
         self.allign = allign
         self.activated = activated
 
-    def draw(self):
+    def draw(self, *args, **kwargs):
         # Choose colors
         self.curColors = self.colorscheme["standard"]
 
@@ -281,7 +300,7 @@ class Textbox(Element):
         self.allign = allign
         self.activated = activated
 
-    def draw(self):
+    def draw(self, *args, **kwargs):
         # Choose colors
         self.curColors = self.colorscheme["standard"]
 
@@ -349,7 +368,7 @@ class Scrolledtext(Element):
         else:
             self.hover = False
 
-    def draw(self):
+    def draw(self, *args, **kwargs):
         # Choose colors
         if self.scrollstop: self.curColors = self.colorscheme["stop"]
         elif self.scroll: self.curColors = self.colorscheme["scroll"]
@@ -427,7 +446,7 @@ class Input(Element):
                     else:
                         self.text += event.unicode
 
-    def draw(self):
+    def draw(self, *args, **kwargs):
         # Choose colors
         if self.selected:
             self.curColors = self.colorscheme["selected"]
@@ -478,7 +497,7 @@ class RenderWindow(Element):
         for listener in self.eventUpdateListeners:
             listener(offsetEventPos)
 
-    def draw(self):
+    def draw(self, *args, **kwargs):
         for listener in self.drawListeners:
             listener()
 
@@ -531,6 +550,10 @@ class ObjectScrollBox(Element):
                 elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
                     for obj in self.objects:
                         obj.mouseevent([event.pos[0] * (1 / scaling) - self.collisionrect.x, event.pos[1] * (1 / scaling) - self.collisionrect.y])
+
+                elif event.type == pygame.KEYDOWN:
+                    for obj in self.objects:
+                        obj.keyboardevent(event)
         else:
             self.hover = False
 
@@ -538,7 +561,7 @@ class ObjectScrollBox(Element):
         self.objectsPrLine = (self.rect.w - self.bordersize * 2) // self.objectSize[0]
         self.maxScroll = (len(self.objects) // self.objectsPrLine) * self.objectSize[1]
 
-    def draw(self):
+    def draw(self, deltaInSec = 0):
         self.updateContentDimensions()
 
         # Background
@@ -549,7 +572,7 @@ class ObjectScrollBox(Element):
         self.contentStartY = self.bordersize
 
         for i in range(len(self.objects)):
-            self.objects[i].draw([self.contentStartX + (i % self.objectsPrLine) * self.objectSize[0], self.contentStartY + (i // self.objectsPrLine) * self.objectSize[1] - self.contentposition])
+            self.objects[i].draw([self.contentStartX + (i % self.objectsPrLine) * self.objectSize[0], self.contentStartY + (i // self.objectsPrLine) * self.objectSize[1] - self.contentposition], deltaInSec)
 
         # Border
         pygame.draw.rect(self.surface, self.colorscheme[1], pygame.Rect(0, 0, self.surface.get_width(), self.surface.get_height()), self.bordersize)
@@ -561,6 +584,12 @@ class ObjectScrollBox(Element):
         for obj in objects:
             self.objects.append(obj)
             obj.setup(self.objectSize, self.surface, self.objectColorScheme, self.objectBorderSize)
+
+    def clear(self):
+        '''
+        Remove all objects
+        '''
+        self.objects = []
 
     def getObjects(self):
         return self.objects
@@ -646,7 +675,7 @@ class MultiObjectScrollBox(Element):
             scaling = scaling
         )
 
-    def draw(self):
+    def draw(self, deltaInSec = 0):
         tempColorScheme = None
         for button in self.navButtons.values():
 
@@ -664,7 +693,7 @@ class MultiObjectScrollBox(Element):
                 button.setColorScheme(tempColorScheme)
                 tempColorScheme = None
 
-        self.scrollBoxes[self.currentPage].draw()
+        self.scrollBoxes[self.currentPage].draw(deltaInSec)
 
         self.mainSurface.blit(self.navSurface, [self.navRect.x, self.navRect.y])
         self.mainSurface.blit(self.scrollBoxSurface, [self.scrollBoxRect.x, self.scrollBoxRect.y])
@@ -679,6 +708,13 @@ class MultiObjectScrollBox(Element):
             self.scrollBoxes[page].addObjects(objects)
         else:
             print(f'Page "{page}" doesn\'t exists!')
+
+    def clearPage(self, page):
+        if page in self.pageNames:
+            self.scrollBoxes[page].clear()
+        else:
+            print(f'Page "{page}" doesn\'t exists!')
+
 
     def getObjects(self, page):
         if page in self.pageNames:
@@ -695,7 +731,7 @@ class LineBasedObjectScrollBox(ObjectScrollBox):
         self.objectsPrLine = 1
         self.maxScroll = len(self.objects) * self.objectSize[1]
 
-    def draw(self):
+    def draw(self, deltaInSec = 0):
         self.updateContentDimensions()
 
         # Background
@@ -706,7 +742,7 @@ class LineBasedObjectScrollBox(ObjectScrollBox):
         self.contentStartY = self.bordersize
 
         for i in range(len(self.objects)):
-            self.objects[i].draw([self.contentStartX, self.contentStartY + (i // self.objectsPrLine) * self.objectSize[1] - self.contentposition])
+            self.objects[i].draw([self.contentStartX, self.contentStartY + (i // self.objectsPrLine) * self.objectSize[1] - self.contentposition], deltaInSec)
 
         # Border
         pygame.draw.rect(self.surface, self.colorscheme[1], pygame.Rect(0, 0, self.surface.get_width(), self.surface.get_height()), self.bordersize)
@@ -738,15 +774,18 @@ class ScrollCompatibleObject:
     def clickevent(self, hit):
         pass
 
-    def draw(self, pos):
+    def keyboardevent(self, event):
+        pass
+
+    def draw(self, pos, deltaInSec = 0):
         self.latestPos = pos
 
         if self.setupDone:
-            self.updateGraphics()
+            self.updateGraphics(deltaInSec)
 
             self.parentSurface.blit(self.exportSurface, pos)
 
-    def updateGraphics(self):
+    def updateGraphics(self, deltaInSec = 0):
         self.exportSurface.fill(self.colorScheme["standard"][2])
         pygame.draw.rect(self.exportSurface, self.colorScheme["standard"][1], pygame.Rect(0, 0, self.size[0], self.size[1]), self.borderWidth)
 
@@ -763,7 +802,7 @@ class SelectableScrollObject(ScrollCompatibleObject):
         else:
             self.selected = False
 
-    def updateGraphics(self):
+    def updateGraphics(self, deltaInSec = 0):
         if self.selected:
             self.curColors = self.colorScheme["selected"]
         else:
@@ -802,3 +841,193 @@ class SelectableSpriteScrollObject(SelectableScrollObject):
 
     def getSprite(self):
         return self.sprite
+
+class ScrollCompatibleLabelledInput(ScrollCompatibleObject):
+    def __init__(self, labelText, font, placeholderText = ""):
+        super().__init__()
+
+        self.labelText = labelText.capitalize()
+        self.text = placeholderText
+        self.font = font
+        self.selected = False
+
+        self.cursorPos = len(self.text)
+        self.arrHoldTime = 0
+
+    def setup(self, objectSize, parentSurface, colorScheme = defaultInputColorScheme, borderWidth = 2):
+        return super().setup(objectSize, parentSurface, colorScheme, borderWidth)
+
+    def clickevent(self, hit):
+        if hit:
+            self.selected = True
+        else:
+            self.selected = False
+
+    def keyboardevent(self, event):
+        if self.selected:
+            self.tempTextLenBefore = len(self.text)
+            if event.key == pygame.K_BACKSPACE and self.cursorPos > 0:
+                self.text = self.text[:self.cursorPos - 1] + self.text[self.cursorPos:]
+                if len(self.text) < self.tempTextLenBefore:
+                    self.cursorPos -= 1
+            else:
+                self.text = self.text[:self.cursorPos] + event.unicode + self.text[self.cursorPos:]
+                if len(self.text) > self.tempTextLenBefore:
+                    self.cursorPos += 1
+
+    # TODO optimize this, make sure stuff is not initialized every frame
+    def updateGraphics(self, deltaInSec = 0):
+        if self.selected:
+            self.curColors = self.colorScheme["selected"]
+            self.pressedKeys = pygame.key.get_pressed()
+            if self.pressedKeys[pygame.K_LEFT]:
+                if self.arrHoldTime == 0:
+                    self.cursorPos -= 1
+                else:
+                    self.cursorPos -= int(self.arrHoldTime + deltaInSec * 100 * (self.arrHoldTime)) - int(self.arrHoldTime)
+                self.arrHoldTime += deltaInSec
+                if self.cursorPos < 0:
+                    self.cursorPos = 0
+            elif self.pressedKeys[pygame.K_RIGHT]:
+                if self.arrHoldTime == 0:
+                    self.cursorPos += 1
+                else:
+                    self.cursorPos += int(self.arrHoldTime + deltaInSec * 100 * (self.arrHoldTime)) - int(self.arrHoldTime)
+                self.arrHoldTime += deltaInSec
+                if self.cursorPos > len(self.text):
+                    self.cursorPos = len(self.text)
+            else:
+                self.arrHoldTime = 0
+        else:
+            self.curColors = self.colorScheme["standard"]
+
+        self.labelRect = pygame.Rect(0, 0, self.exportSurface.get_width() // 2, self.exportSurface.get_height())
+        self.inputRect = pygame.Rect(self.exportSurface.get_width() // 2, 0, self.exportSurface.get_width() // 2, self.exportSurface.get_height())
+
+        pygame.draw.rect(self.exportSurface, self.colorScheme["standard"][2], self.labelRect)
+        pygame.draw.rect(self.exportSurface, self.curColors[2], self.inputRect)
+        
+        self.renderedLabel = self.font.render(self.labelText, True, self.curColors[0])
+
+        if self.selected:
+            self.renderedTextBefore = self.font.render(self.text[:self.cursorPos], True, self.curColors[0])
+            self.renderedTextAfter = self.font.render(self.text[self.cursorPos:], True, self.curColors[0])
+        else:
+            self.renderedText = self.font.render(self.text, True, self.curColors[0])
+
+        self.labelSurface = pygame.surface.Surface(self.labelRect.size)
+        self.textSurface = pygame.surface.Surface(self.inputRect.size)
+        self.labelSurface.fill(self.colorScheme["standard"][2])
+        self.textSurface.fill(self.curColors[2])
+
+        self.labelSurface.blit(self.renderedLabel, [self.borderWidth, (1 + self.labelRect.height) // 2 - (1 + self.renderedLabel.get_height()) // 2])
+        
+
+        if self.selected:
+            self.textSurface.blit(self.renderedTextBefore, [self.inputRect.width - self.borderWidth - self.renderedTextBefore.get_width() - 0.45 * self.inputRect.width, self.inputRect.height // 2 - self.renderedTextBefore.get_height() // 2])
+            self.textSurface.blit(self.renderedTextAfter, [self.inputRect.width - self.borderWidth - 0.45 * self.inputRect.width, self.inputRect.height // 2 - self.renderedTextBefore.get_height() // 2])
+            pygame.draw.rect(self.textSurface, self.curColors[1], pygame.Rect(self.inputRect.width - self.borderWidth - 0.45 * self.inputRect.width - self.borderWidth // 2, self.borderWidth * 1.1, self.borderWidth, self.inputRect.height - self.borderWidth * 2.2))
+        else:
+            self.textSurface.blit(self.renderedText, [self.inputRect.width - self.borderWidth - self.renderedText.get_width(), self.inputRect.height // 2 - self.renderedText.get_height() // 2])
+
+
+        self.exportSurface.blit(self.labelSurface, [self.labelRect.x, self.labelRect.y])
+        self.exportSurface.blit(self.textSurface, [self.inputRect.x, self.inputRect.y])
+
+        pygame.draw.rect(self.exportSurface, self.colorScheme["standard"][1], self.labelRect, self.borderWidth)
+        pygame.draw.rect(self.exportSurface, self.curColors[1], self.inputRect, self.borderWidth)
+
+    def getText(self):
+        return self.text
+    
+    def getLabel(self):
+        return self.labelText
+
+class SpriteOptionsBox(LineBasedObjectScrollBox):
+    def __init__(self, *args, objectFont, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.spriteDataLoaded = False
+        self.objectFont = objectFont
+        self.spriteData = {}
+        self.keyToObject = {}
+
+    def addSpriteDataDict(self, keyToObjectDict, spriteDataDict):
+        for name, value in spriteDataDict.items():    
+            if isinstance(value, dict):
+                keyToObjectDict[name] = {}
+                self.addSpriteDataDict(keyToObjectDict[name], value)
+            
+            elif isinstance(value, str):
+                keyToObjectDict[name] = ScrollCompatibleLabelledInput(
+                    name,
+                    self.objectFont,
+                    value
+                )
+                self.addObjects([keyToObjectDict[name]])
+
+            elif isinstance(value, bool):
+                keyToObjectDict[name] = ScrollCompatibleLabelledInput(
+                    name,
+                    self.objectFont,
+                    str(value).lower()
+                )
+                self.addObjects([keyToObjectDict[name]])
+
+            elif isinstance(value, int) or isinstance(value, float):
+                keyToObjectDict[name] = ScrollCompatibleLabelledInput(
+                    name,
+                    self.objectFont,
+                    str(value)
+                )
+                self.addObjects([keyToObjectDict[name]])
+
+            else:
+                print(f'Type: "{type(value)}" not supported (yet)...')
+
+    def getDataFromObjectDict(self, objectDict, originalSpriteDataDict):
+        resultingSpriteDataDict = originalSpriteDataDict
+        for name, value in originalSpriteDataDict.items():    
+            if isinstance(value, dict):
+                resultingSpriteDataDict[name] = self.getDataFromObjectDict(objectDict[name], value)
+            
+            elif isinstance(value, str):
+                resultingSpriteDataDict[name] = objectDict[name].getText()
+
+            elif isinstance(value, bool):
+                self.tempResultingBoolString = objectDict[name].getText().lower()
+                if self.tempResultingBoolString == "false":
+                    resultingSpriteDataDict[name] = False
+                elif self.tempResultingBoolString == "true":
+                    resultingSpriteDataDict[name] = True
+                else:
+                    print(f'"{name}" with value "{self.tempResultingBoolString}" could not be parsed as bool! Change has been reverted.')
+
+            elif isinstance(value, int) or isinstance(value, float):
+                try:
+                    resultingSpriteDataDict[name] = float(objectDict[name].getText())
+                except ValueError:
+                    print(f'"{name}" with value "{objectDict[name].getText()}" could not be parsed as number! Change has been reverted.')
+
+            else:
+                print(f'Type: "{type(value)}" not supported (yet)...')
+        return resultingSpriteDataDict
+
+    def loadSpriteData(self, spriteData):
+        self.resetSpriteData()
+
+        self.spriteData = spriteData
+        self.addSpriteDataDict(self.keyToObject, self.spriteData)
+        self.spriteDataLoaded = True
+
+    def getSpriteData(self):
+        return self.getDataFromObjectDict(self.keyToObject, self.spriteData)
+    
+    def resetSpriteData(self):
+        self.clear()
+        self.keyToObject = {}
+        self.spriteData = {}
+        self.spriteDataLoaded = False
+
+    def isSpriteDataLoaded(self):
+        return self.spriteDataLoaded
